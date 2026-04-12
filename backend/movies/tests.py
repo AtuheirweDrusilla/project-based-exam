@@ -1,8 +1,6 @@
 from datetime import date
-
 from django.test import TestCase, override_settings
-
-from movies.models import Movie
+from movies.models import Movie, Person, WatchProvider
 
 
 @override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
@@ -62,3 +60,59 @@ class MovieModelPropertyTest(TestCase):
     def test_trailer_url_returns_none_when_trailer_key_is_blank(self):
         self.movie.trailer_key = ""
         self.assertIsNone(self.movie.trailer_url)
+
+@override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
+class PersonModelPropertyTest(TestCase):
+    def setUp(self):
+        self.person = Person.objects.create(
+            tmdb_id=101,
+            name="Sample Actor",
+            profile_path="/sample-profile.jpg",
+            known_for_department="Acting",
+        )
+
+    def test_string_representation_returns_name(self):
+        self.assertEqual(str(self.person), "Sample Actor")
+
+    def test_profile_url_builds_full_image_path(self):
+        self.assertEqual(
+            self.person.profile_url,
+            "https://image.tmdb.org/t/p/w185/sample-profile.jpg",
+        )
+
+    def test_profile_url_returns_none_when_profile_path_is_blank(self):
+        self.person.profile_path = ""
+        self.assertIsNone(self.person.profile_url)
+
+
+@override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
+class WatchProviderModelPropertyTest(TestCase):
+    def setUp(self):
+        self.movie = Movie.objects.create(
+            tmdb_id=999,
+            title="Provider Test Movie",
+            vote_average=7.5,
+            vote_count=100,
+            popularity=50.0,
+        )
+        self.provider = WatchProvider.objects.create(
+            movie=self.movie,
+            provider_name="Netflix",
+            provider_type="flatrate",
+            logo_path="/netflix-logo.jpg",
+            link="https://www.netflix.com",
+            country_code="US",
+        )
+
+    def test_string_representation_includes_provider_name_and_type(self):
+        self.assertIn("Netflix", str(self.provider))
+
+    def test_logo_url_builds_full_image_path(self):
+        self.assertEqual(
+            self.provider.logo_url,
+            "https://image.tmdb.org/t/p/w92/netflix-logo.jpg",
+        )
+
+    def test_logo_url_returns_none_when_logo_path_is_blank(self):
+        self.provider.logo_path = ""
+        self.assertIsNone(self.provider.logo_url)
