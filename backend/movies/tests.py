@@ -1,7 +1,7 @@
 from datetime import date
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
-from movies.models import Movie, Person, WatchProvider
+from movies.models import Movie, Person, WatchProvider, Genre
 from movies.serializers import TMDBMovieSerializer
 from movies.views import MOOD_MAP
 
@@ -239,3 +239,64 @@ class CompareEndpointTest(TestCase):
     def test_non_numeric_ids_returns_400(self):
         response = self.client.get("/api/movies/compare/?ids=abc,xyz")
         self.assertEqual(response.status_code, 400)
+
+@override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
+class MovieListEndpointTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+        self.action_genre = Genre.objects.create(
+            tmdb_id=28,
+            name="Action",
+            slug="action",
+        )
+        self.comedy_genre = Genre.objects.create(
+            tmdb_id=35,
+            name="Comedy",
+            slug="comedy",
+        )
+
+        self.action_movie = Movie.objects.create(
+            tmdb_id=700,
+            title="Action Movie",
+            release_date=date(2020, 1, 1),
+            vote_average=8.0,
+            vote_count=1000,
+            popularity=90.0,
+            poster_path="/action.jpg",
+        )
+        self.action_movie.genres.add(self.action_genre)
+
+        self.comedy_movie = Movie.objects.create(
+            tmdb_id=701,
+            title="Comedy Movie",
+            release_date=date(2021, 1, 1),
+            vote_average=7.0,
+            vote_count=500,
+            popularity=70.0,
+            poster_path="/comedy.jpg",
+        )
+        self.comedy_movie.genres.add(self.comedy_genre)
+
+    def test_list_endpoint_returns_local_movies(self):
+        response = self.client.get("/api/movies/list/")
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        self.assertIn("results", response_data)
+        self.assertEqual(len(response_data["results"]), 2)
+
+    def test_list_endpoint_filters_by_action_genre_slug(self):
+        response = self.client.get("/api/movies/list/?genres__slug=action")
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        self.assertEqual(len(response_data["results"]), 1)
+        self.assertEqual(response_data["results"][0]["title"], "Action Movie")
+
+    def test_list_endpoint_excludes_non_matching_genre(self):
+        response = self.client.get("/api/movies/list/?genres__slug=horror")
+        self.assertEqual(response.status_code, 200)
+
+        response_data = response.json()
+        self.assertEqual(len(response_data["results"]), 0)
