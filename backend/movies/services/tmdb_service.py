@@ -241,6 +241,14 @@ PROVIDER_TYPE_MAP = {
     "free": "free",
 }
 
+Examples of changes (applied to all ~15 methods):
+- `"""getting  full movie details..."""` → `"""Get full movie details with credits, videos, and recommendations."""`
+- `"""searching movies by title."""` → `"""Search movies by title."""`
+- `"""getting  trending movies (day or week)."""` → `"""Get trending movies for a time window (day or week)."""`
+- `"""Syncing all genres from TMDB to local DB."""` → `"""Sync all genres from TMDB to local DB."""`
+- `"""getting  Wikipedia summary for a movie."""` → `"""Fetch a Wikipedia summary for a movie, falling back to a generic title if year-specific lookup 404s."""`
+
+
 # Inside sync_movie:
         for tmdb_key, local_type in PROVIDER_TYPE_MAP.items():
             for provider in providers.get(tmdb_key, []):
