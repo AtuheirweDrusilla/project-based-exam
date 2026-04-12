@@ -1,6 +1,7 @@
 from datetime import date
 from django.test import TestCase, override_settings
 from movies.models import Movie, Person, WatchProvider
+from movies.serializers import TMDBMovieSerializer
 
 
 @override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
@@ -116,3 +117,76 @@ class WatchProviderModelPropertyTest(TestCase):
     def test_logo_url_returns_none_when_logo_path_is_blank(self):
         self.provider.logo_path = ""
         self.assertIsNone(self.provider.logo_url)
+
+class TMDBMovieSerializerTest(TestCase):
+    def test_serializer_builds_image_urls_and_year(self):
+        movie_data = {
+            "id": 550,
+            "title": "Sample Movie",
+            "overview": "A sample overview.",
+            "release_date": "1999-10-15",
+            "vote_average": 8.4,
+            "vote_count": 25000,
+            "popularity": 61.0,
+            "poster_path": "/poster.jpg",
+            "backdrop_path": "/backdrop.jpg",
+            "genre_ids": [18],
+        }
+
+        serializer = TMDBMovieSerializer(instance=movie_data)
+        serialized_data = serializer.data
+
+        self.assertEqual(serialized_data["year"], 1999)
+        self.assertEqual(
+            serialized_data["poster_url"],
+            "https://image.tmdb.org/t/p/w500/poster.jpg",
+        )
+        self.assertEqual(
+            serialized_data["poster_url_small"],
+            "https://image.tmdb.org/t/p/w185/poster.jpg",
+        )
+        self.assertEqual(
+            serialized_data["backdrop_url"],
+            "https://image.tmdb.org/t/p/w1280/backdrop.jpg",
+        )
+
+    def test_serializer_handles_blank_release_date(self):
+        movie_data = {
+            "id": 551,
+            "title": "No Date Movie",
+            "overview": "Another sample overview.",
+            "release_date": "",
+            "vote_average": 7.0,
+            "vote_count": 500,
+            "popularity": 40.0,
+            "poster_path": "/poster2.jpg",
+            "backdrop_path": "/backdrop2.jpg",
+            "genre_ids": [35],
+        }
+
+        serializer = TMDBMovieSerializer(instance=movie_data)
+        serialized_data = serializer.data
+
+        self.assertIsNone(serialized_data["year"])
+
+    def test_serializer_omits_image_urls_when_paths_are_missing(self):
+        movie_data = {
+            "id": 552,
+            "title": "Missing Images Movie",
+            "overview": "Movie without image paths.",
+            "release_date": "2005-06-01",
+            "vote_average": 6.5,
+            "vote_count": 120,
+            "popularity": 15.0,
+            "poster_path": "",
+            "backdrop_path": "",
+            "genre_ids": [12],
+        }
+
+        serializer = TMDBMovieSerializer(instance=movie_data)
+        serialized_data = serializer.data
+
+        self.assertEqual(serialized_data["year"], 2005)
+        self.assertNotIn("poster_url", serialized_data)
+        self.assertNotIn("poster_url_small", serialized_data)
+        self.assertNotIn("backdrop_url", serialized_data)
