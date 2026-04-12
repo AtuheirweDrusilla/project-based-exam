@@ -138,10 +138,10 @@ class MovieSyncService:
         from movies.models import Genre
 
         genres = self.tmdb.get_genres()
-        for g in genres:
+        for genre_data in genres:
             Genre.objects.update_or_create(
-                tmdb_id=g["id"],
-                defaults={"name": g["name"], "slug": slugify(g["name"])},
+                tmdb_id=genre_data["id"],
+                defaults={"name": genre_data["name"], "slug": slugify(genre_data["name"])},
             )
         logger.info(f"Synced {len(genres)} genres")
 
@@ -178,10 +178,10 @@ class MovieSyncService:
 
         # Sync genres
         genre_ids = []
-        for g in data.get("genres", []):
+        for genre_data in data.get("genres", []):
             genre, _ = Genre.objects.get_or_create(
                 tmdb_id=g["id"],
-                defaults={"name": g["name"], "slug": slugify(g["name"])},
+                defaults={"name": genre_data["name"], "slug": slugify(genre_data["name"])},
             )
             genre_ids.append(genre.id)
         movie.genres.set(genre_ids)
