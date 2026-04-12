@@ -167,23 +167,18 @@ def trending_movies(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def now_playing(request):
-    p = int(request.query_params.get("page", 1))
-    d = tmdb.get_now_playing(page=p)
-    r = d.get("results", [])
-    s = TMDBMovieSerializer(r, many=True)
-    x = {"results": s.data, "page": p}
-    return Response(x)
-
+    """Return movies currently in theatres."""
+    page = int(request.query_params.get("page", 1))
+    data = tmdb.get_now_playing(page=page)
+    return Response(_serialize_tmdb_results(data, page))
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def top_rated(request):
-    p = int(request.query_params.get("page", 1))
-    d = tmdb.get_top_rated_movies(page=p)
-    r = d.get("results", [])
-    s = TMDBMovieSerializer(r, many=True)
-    x = {"results": s.data, "page": p}
-    return Response(x)
+    """Return highest-rated movies of all time."""
+    page = int(request.query_params.get("page", 1))
+    data = tmdb.get_top_rated_movies(page=page)
+    return Response(_serialize_tmdb_results(data, page))
 
 
 @api_view(["GET"])
