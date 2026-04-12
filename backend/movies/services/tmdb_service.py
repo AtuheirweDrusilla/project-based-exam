@@ -233,9 +233,17 @@ class MovieSyncService:
         # Watch providers
         providers = data.get("watch/providers", {}).get("results", {}).get("US", {})
         WatchProvider.objects.filter(movie=movie).delete()
-        for ptype in ["flatrate", "rent", "buy", "free"]:
-            type_map = {"flatrate": "stream", "rent": "rent", "buy": "buy", "free": "free"}
-            for p in providers.get(ptype, []):
+        # Module level:
+PROVIDER_TYPE_MAP = {
+    "flatrate": "stream",
+    "rent": "rent",
+    "buy": "buy",
+    "free": "free",
+}
+
+# Inside sync_movie:
+        for tmdb_key, local_type in PROVIDER_TYPE_MAP.items():
+            for provider in providers.get(tmdb_key, []):
                 WatchProvider.objects.create(
                     movie=movie,
                     provider_name=p.get("provider_name", ""),
