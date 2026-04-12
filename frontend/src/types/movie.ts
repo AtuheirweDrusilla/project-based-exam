@@ -95,6 +95,16 @@ export interface AuthTokens {
   refresh: string;
 }
 
+export interface WatchlistItem {
+  id: number;
+  movie_tmdb_id: number;
+  movie_title: string;
+  poster_path: string;
+  added_at: string;
+  watched: boolean;
+  watched_at: string | null;
+}
+
 // Recommendation Types
 
 export interface GenrePreference {
