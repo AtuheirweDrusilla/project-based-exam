@@ -104,4 +104,28 @@ export interface GenrePreference {
   interaction_count: number;
 }
 
+// Collection Types
 
+export interface CollectionRule {
+  id?: number;
+  field: string;
+  value: string;
+}
+
+export interface CollectionCompact {
+  id: number;
+  name: string;
+  description: string;
+  is_public: boolean;
+  cover_url: string | null;
+  owner: string;
+  rule_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Collection extends CollectionCompact {
+  cover_backdrop: string;
+  rules: CollectionRule[];
+  movie_count: number | null;
+}
