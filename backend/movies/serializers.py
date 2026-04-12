@@ -19,6 +19,10 @@ class PersonCompactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = ["id", "tmdb_id", "name", "profile_url", "known_for_department"]
+        
+  def _get_release_year(obj):
+    """Extract the release year from a model instance (shared by compact/detail serializers)."""
+    return obj.release_date.year if obj.release_date else None
 
 
 class PersonDetailSerializer(serializers.ModelSerializer):
