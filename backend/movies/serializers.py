@@ -137,6 +137,6 @@ class TMDBMovieSerializer(serializers.Serializer):
             data["poster_url_small"] = f"{base}/w185{data['poster_path']}"
         if data.get("backdrop_path"):
             data["backdrop_url"] = f"{base}/w1280{data['backdrop_path']}"
-        rd = data.get("release_date", "")
-        data["year"] = int(rd[:4]) if rd and len(rd) >= 4 else None
+        release_date = data.get("release_date", "")
+        data["year"] = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
         return data
