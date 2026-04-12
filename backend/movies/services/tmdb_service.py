@@ -154,6 +154,13 @@ class MovieSyncService:
             logger.warning(f"Could not fetch movie {tmdb_id}")
             return None
 
+        **Problem:** Comment headers in `views.py` used inconsistent formats: `##`, `###`, bare `##`, and no separators. In `engine.py`, comments had missing spaces (`###sorting`) and inconsistent prefixes (`##`, `###`).
+
+**Changes across `views.py` and `engine.py`:**
+- All section headers now use consistent `# --- Title ---` separator format
+- All inline comments use standard `#` prefix with proper spacing
+- Removed stale/redundant comment noise (`### class helper functions` → `# -- internal helpers --`)
+
         movie, _ = Movie.objects.update_or_create(
             tmdb_id=data["id"],
             defaults={
