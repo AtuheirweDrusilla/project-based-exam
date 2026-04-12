@@ -47,7 +47,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('tmdb_id', models.IntegerField(db_index=True, unique=True)),
                 ('imdb_id', models.CharField(blank=True, db_index=True, default='', max_length=20)),
-                ('title', models.CharField(max_length=50)),
+                ('title', models.CharField(max_length=500)),
                 ('original_title', models.CharField(blank=True, default='', max_length=500)),
                 ('overview', models.TextField(blank=True, default='')),
                 ('tagline', models.CharField(blank=True, default='', max_length=500)),
