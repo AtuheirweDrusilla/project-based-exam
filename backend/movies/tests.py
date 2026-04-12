@@ -1,7 +1,9 @@
 from datetime import date
 from django.test import TestCase, override_settings
+from rest_framework.test import APIClient
 from movies.models import Movie, Person, WatchProvider
 from movies.serializers import TMDBMovieSerializer
+from movies.views import MOOD_MAP
 
 
 @override_settings(TMDB_IMAGE_BASE_URL="https://image.tmdb.org/t/p")
@@ -190,3 +192,50 @@ class TMDBMovieSerializerTest(TestCase):
         self.assertNotIn("poster_url", serialized_data)
         self.assertNotIn("poster_url_small", serialized_data)
         self.assertNotIn("backdrop_url", serialized_data)
+
+class SearchEndpointTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_blank_query_returns_400(self):
+        response = self.client.post("/api/movies/search/?q=   ")
+        self.assertEqual(response.status_code, 400)
+
+
+class MoodEndpointTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_mood_list_returns_all_moods(self):
+        response = self.client.get("/api/movies/moods/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), len(MOOD_MAP))
+
+    def test_each_mood_contains_label_and_description(self):
+        response = self.client.get("/api/movies/moods/")
+        self.assertEqual(response.status_code, 200)
+
+        for mood in response.json():
+            self.assertIn("label", mood)
+            self.assertIn("description", mood)
+
+    def test_unknown_mood_slug_returns_404(self):
+        response = self.client.get("/api/movies/moods/not-a-real-mood/")
+        self.assertEqual(response.status_code, 404)
+
+
+class CompareEndpointTest(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_missing_ids_returns_400(self):
+        response = self.client.get("/api/movies/compare/")
+        self.assertEqual(response.status_code, 400)
+
+    def test_single_id_returns_400(self):
+        response = self.client.get("/api/movies/compare/?ids=550")
+        self.assertEqual(response.status_code, 400)
+
+    def test_non_numeric_ids_returns_400(self):
+        response = self.client.get("/api/movies/compare/?ids=abc,xyz")
+        self.assertEqual(response.status_code, 400)
