@@ -13,7 +13,14 @@ from .serializers import (
 )
 from .services.tmdb_service import TMDBService, MovieSyncService, WikipediaService
 
-#Constants
+logger = logging.getLogger(__name__)
+tmdb = TMDBService()
+sync_service = MovieSyncService()
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
 MOOD_MAP = {
     "cozy-night": {
         "label": "Cozy Night In",
@@ -83,7 +90,7 @@ MOOD_MAP = {
         "sort_by": "popularity.desc",
         "vote_count_gte": 200,
     },
-     "documentary-deep-dive": {
+    "documentary-deep-dive": {
         "label": "Documentary Deep Dive",
         "description": "Real stories that expand your worldview",
         "genres": "99",  # Documentary
@@ -93,9 +100,10 @@ MOOD_MAP = {
     },
 }
 
-logger = logging.getLogger(__name__)
-tmdb = TMDBService()
-sync_service = MovieSyncService()
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _serialize_tmdb_results(tmdb_data, page, include_total=False):
     """Serialize raw TMDB API results into a standard paginated response dict."""
@@ -110,8 +118,14 @@ def _serialize_tmdb_results(tmdb_data, page, include_total=False):
         response["total_results"] = tmdb_data.get("total_results", 0)
     return response
 
-## Movie ViewSet
+
+# ---------------------------------------------------------------------------
+# ViewSets
+# ---------------------------------------------------------------------------
+
 class MovieViewSet(viewsets.ReadOnlyModelViewSet):
+    """CRUD-read API for locally-synced movies with TMDB enrichment actions."""
+
     queryset = Movie.objects.prefetch_related("genres", "directors").all()
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend]
@@ -124,6 +138,7 @@ class MovieViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def recommendations(self, request, pk=None):
+        """Return TMDB-powered recommendations for a single movie."""
         movie = self.get_object()
         data = tmdb.get_movie_recommendations(movie.tmdb_id)
         results = data.get("results", [])
@@ -132,6 +147,7 @@ class MovieViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def similar(self, request, pk=None):
+        """Return TMDB similar movies for a single movie."""
         movie = self.get_object()
         data = tmdb.get_similar_movies(movie.tmdb_id)
         results = data.get("results", [])
@@ -140,6 +156,7 @@ class MovieViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def wikipedia(self, request, pk=None):
+        """Fetch and persist a Wikipedia summary for a movie."""
         movie = self.get_object()
         year = movie.release_date.year if movie.release_date else None
         wiki_data = WikipediaService.get_movie_summary(movie.title, year)
@@ -152,9 +169,9 @@ class MovieViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(wiki_data)
 
 
-## Genre ViewSet
 class GenreViewSet(viewsets.ReadOnlyModelViewSet):
     """Genres API."""
+
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     permission_classes = [AllowAny]
@@ -162,34 +179,26 @@ class GenreViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def movies(self, request, slug=None):
-        """GET /api/movies/genres/{slug}/movies/ → movies in this genre."""
+        """GET /api/movies/genres/{slug}/movies/ — movies in this genre."""
         genre = self.get_object()
         page = int(request.query_params.get("page", 1))
         sort = request.query_params.get("sort", "popularity.desc")
 
-        # Try local DB first
+        # Prefer local DB when it has enough data to fill a page
         local_movies = Movie.objects.filter(genres=genre).order_by("-popularity")
         if local_movies.count() >= 20:
             paginator = self.paginate_queryset(local_movies)
             serializer = MovieCompactSerializer(paginator, many=True)
             return self.get_paginated_response(serializer.data)
 
-        # Fallback to TMDB API
+        # Fall back to live TMDB discovery
         data = tmdb.get_movies_by_genre(genre.tmdb_id, page=page, sort_by=sort)
-        results = data.get("results", [])
-        serializer = TMDBMovieSerializer(results, many=True)
-        return Response({
-            "results": serializer.data,
-            "total_pages": data.get("total_pages", 1),
-            "total_results": data.get("total_results", 0),
-            "page": page,
-        })
+        return Response(_serialize_tmdb_results(data, page, include_total=True))
 
-
-## Person ViewSet
 
 class PersonViewSet(viewsets.ReadOnlyModelViewSet):
     """People (directors, actors) API."""
+
     queryset = Person.objects.all()
     permission_classes = [AllowAny]
 
@@ -200,6 +209,7 @@ class PersonViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["get"])
     def enrich(self, request, pk=None):
+        """Fetch extended bio data from TMDB and persist it locally."""
         person = self.get_object()
         data = tmdb.get_person_details(person.tmdb_id)
 
@@ -213,11 +223,14 @@ class PersonViewSet(viewsets.ReadOnlyModelViewSet):
         return Response(serializer.data)
 
 
-## standalone endpoints
+# ---------------------------------------------------------------------------
+# Standalone endpoints — search & browse
+# ---------------------------------------------------------------------------
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def search_movies(request):
+    """Search movies by title via TMDB."""
     query = request.query_params.get("q", "").strip()
     page = int(request.query_params.get("page", 1))
 
@@ -228,33 +241,20 @@ def search_movies(request):
         )
 
     data = tmdb.search_movies(query, page=page)
-    results = data.get("results", [])
-    serializer = TMDBMovieSerializer(results, many=True)
-
-    return Response({
-        "results": serializer.data,
-        "total_pages": data.get("total_pages", 1),
-        "total_results": data.get("total_results", 0),
-        "page": page,
-        "query": query,
-    })
+    response = _serialize_tmdb_results(data, page, include_total=True)
+    response["query"] = query
+    return Response(response)
 
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def trending_movies(request):
+    """Return trending movies for a given time window (day/week)."""
     window = request.query_params.get("window", "week")
     page = int(request.query_params.get("page", 1))
 
     data = tmdb.get_trending_movies(time_window=window, page=page)
-    results = data.get("results", [])
-    serializer = TMDBMovieSerializer(results, many=True)
-
-    return Response({
-        "results": serializer.data,
-        "total_pages": data.get("total_pages", 1),
-        "page": page,
-    })
+    return Response(_serialize_tmdb_results(data, page))
 
 
 @api_view(["GET"])
@@ -264,6 +264,7 @@ def now_playing(request):
     page = int(request.query_params.get("page", 1))
     data = tmdb.get_now_playing(page=page)
     return Response(_serialize_tmdb_results(data, page))
+
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -277,7 +278,7 @@ def top_rated(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def movie_detail_tmdb(request, tmdb_id):
-
+    """Fetch full movie details from TMDB, optionally syncing to local DB."""
     sync = request.query_params.get("sync", "false").lower() == "true"
 
     if sync:
@@ -296,6 +297,7 @@ def movie_detail_tmdb(request, tmdb_id):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def search_people(request):
+    """Search directors, actors, and crew by name."""
     query = request.query_params.get("q", "").strip()
     if not query:
         return Response({"error": "Query parameter 'q' is required"}, status=400)
@@ -303,12 +305,18 @@ def search_people(request):
     data = tmdb.search_people(query)
     return Response(data)
 
+
+# ---------------------------------------------------------------------------
+# Mood-based discovery
+# ---------------------------------------------------------------------------
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def mood_list(request):
+    """Return all available mood categories with labels and descriptions."""
     moods = [
-        {"slug": slug, "label": m["label"], "description": m["description"]}
-        for slug, m in MOOD_MAP.items()
+        {"slug": slug, "label": mood["label"], "description": mood["description"]}
+        for slug, mood in MOOD_MAP.items()
     ]
     return Response(moods)
 
@@ -316,6 +324,7 @@ def mood_list(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def mood_movies(request, mood_slug):
+    """Discover movies matching a mood profile via TMDB genre/rating filters."""
     mood = MOOD_MAP.get(mood_slug)
     if not mood:
         return Response({"error": "Unknown mood"}, status=404)
@@ -343,10 +352,14 @@ def mood_movies(request, mood_slug):
     })
 
 
-### advanced discover / filters
+# ---------------------------------------------------------------------------
+# Advanced discover / filters
+# ---------------------------------------------------------------------------
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def discover_filtered(request):
+    """Discover movies with flexible query-param filters forwarded to TMDB."""
     params = {}
     page = int(request.query_params.get("page", 1))
     params["page"] = page
@@ -365,7 +378,7 @@ def discover_filtered(request):
     rating_min = request.query_params.get("rating_min")
     if rating_min:
         params["vote_average.gte"] = float(rating_min)
-        params["vote_count.gte"] = 50 
+        params["vote_count.gte"] = 50
 
     runtime_min = request.query_params.get("runtime_min")
     runtime_max = request.query_params.get("runtime_max")
@@ -382,22 +395,17 @@ def discover_filtered(request):
     params["sort_by"] = sort
 
     data = tmdb.discover_movies(**params)
-    results = data.get("results", [])
-    serializer = TMDBMovieSerializer(results, many=True)
-
-    return Response({
-        "results": serializer.data,
-        "total_pages": data.get("total_pages", 1),
-        "total_results": data.get("total_results", 0),
-        "page": page,
-    })
+    return Response(_serialize_tmdb_results(data, page, include_total=True))
 
 
-## movie comparison
+# ---------------------------------------------------------------------------
+# Movie comparison
+# ---------------------------------------------------------------------------
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def compare_movies(request):
+    """Fetch full details for two movies side-by-side. Usage: ?ids=550,680"""
     ids_str = request.query_params.get("ids", "")
     ids = [int(i.strip()) for i in ids_str.split(",") if i.strip().isdigit()]
 
@@ -405,8 +413,8 @@ def compare_movies(request):
         return Response({"error": "Provide at least 2 TMDB IDs: ?ids=550,680"}, status=400)
 
     movies = []
-    for tmdb_id in ids[:2]:
-        data = tmdb.get_movie_details(tmdb_id)
+    for movie_id in ids[:2]:
+        data = tmdb.get_movie_details(movie_id)
         if data and "id" in data:
             movies.append(data)
 
@@ -414,5 +422,3 @@ def compare_movies(request):
         return Response({"error": "Could not fetch both movies"}, status=404)
 
     return Response({"movies": movies})
-
-

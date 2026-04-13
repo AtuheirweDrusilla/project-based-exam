@@ -1,12 +1,12 @@
 import logging
-from movies.models import Genre
 from collections import Counter
 from django.db.models import Avg, Count
 from movies.services.tmdb_service import TMDBService
 
 logger = logging.getLogger(__name__)
 
-# Interaction weights
+# Weights applied to each interaction type when computing genre preferences.
+# Positive values boost a genre's score; negative values penalise it.
 INTERACTION_WEIGHTS = {
     "like": 5.0,
     "watched": 3.0,
@@ -16,6 +16,8 @@ INTERACTION_WEIGHTS = {
     "dislike": -3.0,
 }
 
+DEFAULT_INTERACTION_WEIGHT = 1.0
+
 
 class RecommendationEngine:
     """Generate personalised movie recommendations from user interaction history."""
@@ -24,6 +26,7 @@ class RecommendationEngine:
         self.tmdb = TMDBService()
 
     def compute_genre_preferences(self, user) -> list:
+        """Score each genre based on the user's interaction history and persist the results."""
         from recommendations.models import UserMovieInteraction, UserGenrePreference
         from movies.models import Genre
 
@@ -31,15 +34,12 @@ class RecommendationEngine:
         genre_scores = Counter()
         genre_names = {}
 
-        DEFAULT_INTERACTION_WEIGHT = 1.0
-
-# ... inside method:
         for interaction in interactions:
             weight = INTERACTION_WEIGHTS.get(
                 interaction.interaction_type, DEFAULT_INTERACTION_WEIGHT
             )
             for genre_id in interaction.genre_ids:
-                genre_scores[genre_id] += w
+                genre_scores[genre_id] += weight
                 if genre_id not in genre_names:
                     try:
                         genre = Genre.objects.get(tmdb_id=genre_id)
@@ -47,14 +47,14 @@ class RecommendationEngine:
                     except Genre.DoesNotExist:
                         genre_names[genre_id] = f"Genre {genre_id}"
 
-        ### normalizing scores to 0-100 range
+        # Normalise scores to a 0–100 range
         if genre_scores:
             max_score = max(genre_scores.values())
             if max_score > 0:
-                for gid in genre_scores:
-                    genre_scores[gid] = (genre_scores[gid] / max_score) * 100
+                for genre_id in genre_scores:
+                    genre_scores[genre_id] = (genre_scores[genre_id] / max_score) * 100
 
-        ## saving preferences
+        # Persist computed preferences
         for genre_id, score in genre_scores.items():
             UserGenrePreference.objects.update_or_create(
                 user=user,
@@ -71,16 +71,16 @@ class RecommendationEngine:
         return sorted(genre_scores.items(), key=lambda x: x[1], reverse=True)
 
     def get_recommendations(self, user, page: int = 1, limit: int = 20) -> list:
+        """Build a ranked list of movie suggestions from the user's top genres."""
         from recommendations.models import UserMovieInteraction
 
-        ## computing fresh preferences
         preferences = self.compute_genre_preferences(user)
 
+        # New users with no history get trending movies as a cold-start fallback
         if not preferences:
             data = self.tmdb.get_trending_movies(page=page)
             return data.get("results", [])
 
-        ## getting movies the user has already seen
         seen_ids = set(
             UserMovieInteraction.objects.filter(
                 user=user,
@@ -88,7 +88,7 @@ class RecommendationEngine:
             ).values_list("movie_tmdb_id", flat=True)
         )
 
-        # getting top 3 genres
+        # Fetch candidates from the user's top 3 genres
         top_genres = preferences[:3]
         all_movies = []
 
@@ -96,44 +96,43 @@ class RecommendationEngine:
             data = self.tmdb.discover_movies(
                 with_genres=genre_id,
                 sort_by="vote_average.desc",
-                vote_count_gte=100,  
+                vote_count_gte=100,
                 page=page,
             )
             movies = data.get("results", [])
-            for m in movies:
-                m["_recommendation_score"] = score * m.get("vote_average", 0)
+            for movie in movies:
+                movie["_recommendation_score"] = score * movie.get("vote_average", 0)
             all_movies.extend(movies)
 
+        # De-duplicate and exclude already-seen movies
         seen_in_batch = set()
         unique_movies = []
-        for m in all_movies:
-            mid = m["id"]
-            if mid not in seen_ids and mid not in seen_in_batch:
-                seen_in_batch.add(mid)
-                unique_movies.append(m)
+        for movie in all_movies:
+            movie_id = movie["id"]
+            if movie_id not in seen_ids and movie_id not in seen_in_batch:
+                seen_in_batch.add(movie_id)
+                unique_movies.append(movie)
 
-        ### sorting by recommendation score
         unique_movies.sort(key=lambda x: x.get("_recommendation_score", 0), reverse=True)
-
         return unique_movies[:limit]
 
     def get_director_recommendations(self, director_tmdb_id: int, exclude_movie_id: int = None) -> list:
-        """getting other movies by a specific director."""
+        """Get other movies by a specific director, sorted by popularity."""
         data = self.tmdb.get_person_details(director_tmdb_id)
         if not data:
             return []
 
         credits = data.get("movie_credits", {}).get("crew", [])
         directed = [
-            c for c in credits
-            if c.get("job") == "Director" and c.get("id") != exclude_movie_id
+            credit for credit in credits
+            if credit.get("job") == "Director" and credit.get("id") != exclude_movie_id
         ]
 
-        ##sorting by popularity
         directed.sort(key=lambda x: x.get("popularity", 0), reverse=True)
         return directed[:10]
 
     def get_because_you_watched(self, user, limit: int = 20) -> dict:
+        """Return TMDB recommendations anchored to movies the user recently liked/watched."""
         from recommendations.models import UserMovieInteraction
 
         recent = UserMovieInteraction.objects.filter(
