@@ -133,7 +133,7 @@ class TMDBMovieSerializer(serializers.Serializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         from django.conf import settings
-    # ... inside method:
+# ... inside method:
         image_base = settings.TMDB_IMAGE_BASE_URL
 
         if data.get("poster_path"):
