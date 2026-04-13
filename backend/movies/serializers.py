@@ -79,7 +79,7 @@ class MovieCompactSerializer(serializers.ModelSerializer):
         ]
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class MovieDetailSerializer(serializers.ModelSerializer):
@@ -114,7 +114,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
         return MovieCastSerializer(cast, many=True).data
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class TMDBMovieSerializer(serializers.Serializer):
