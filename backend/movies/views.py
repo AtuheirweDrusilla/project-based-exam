@@ -17,6 +17,19 @@ logger = logging.getLogger(__name__)
 tmdb = TMDBService()
 sync_service = MovieSyncService()
 
+def _serialize_tmdb_results(tmdb_data, page, include_total=False):
+    """Serialize raw TMDB API results into a standard paginated response dict."""
+    results = tmdb_data.get("results", [])
+    serializer = TMDBMovieSerializer(results, many=True)
+    response = {
+        "results": serializer.data,
+        "total_pages": tmdb_data.get("total_pages", 1),
+        "page": page,
+    }
+    if include_total:
+        response["total_results"] = tmdb_data.get("total_results", 0)
+    return response
+
 ## Movie ViewSet
 class MovieViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Movie.objects.prefetch_related("genres", "directors").all()
