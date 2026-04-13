@@ -150,7 +150,15 @@ export default function MovieDetailPage() {
       setIsDisliked(false);
       setLikeCount((c) => c + 1);
     }
-  }, [tmdbId, isLiked, movie]);
+         if (isAuthenticated) {
+        recommendationsAPI.trackInteraction({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          interaction_type: "like",
+          genre_ids: (movie?.genres || []).map((g: any) => g.id || g.tmdb_id),
+        }).catch(() => {});
+      }
+ }, [tmdbId, isLiked, movie, isAuthenticated]);
 
   const handleDislike = useCallback(() => {
     const liked = getLikedMovies();
