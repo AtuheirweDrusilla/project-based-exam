@@ -19,6 +19,10 @@ class PersonCompactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = ["id", "tmdb_id", "name", "profile_url", "known_for_department"]
+        
+  def _get_release_year(obj):
+    """Extract the release year from a model instance (shared by compact/detail serializers)."""
+    return obj.release_date.year if obj.release_date else None
 
 
 class PersonDetailSerializer(serializers.ModelSerializer):
@@ -128,12 +132,15 @@ class TMDBMovieSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        base = "https://image.tmdb.org/t/p"
+       from django.conf import settings
+# ... inside method:
+        image_base = settings.TMDB_IMAGE_BASE_URL
+
         if data.get("poster_path"):
             data["poster_url"] = f"{base}/w500{data['poster_path']}"
             data["poster_url_small"] = f"{base}/w185{data['poster_path']}"
         if data.get("backdrop_path"):
             data["backdrop_url"] = f"{base}/w1280{data['backdrop_path']}"
-        rd = data.get("release_date", "")
-        data["year"] = int(rd[:4]) if rd and len(rd) >= 4 else None
+        release_date = data.get("release_date", "")
+        data["year"] = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
         return data

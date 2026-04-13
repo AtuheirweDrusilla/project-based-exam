@@ -31,5 +31,7 @@ class WatchlistSerializer(serializers.ModelSerializer):
 
     def get_poster_url(self, obj):
         if obj.poster_path:
-            return f"https://image.tmdb.org/t/p/w500{obj.poster_path}"
+           from django.conf import settings
+# ... inside method:
+            return f"{settings.TMDB_IMAGE_BASE_URL}/w500{obj.poster_path}"
         return None
