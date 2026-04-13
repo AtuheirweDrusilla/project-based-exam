@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import MovieCarousel from "@/components/MovieCarousel";
 import MovieCard from "@/components/MovieCard";
-import { moviesAPI } from "@/lib/api";
+import { moviesAPI, recommendationsAPI } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 import {
   posterUrl, backdropUrl, formatRuntime, formatCurrency,
   formatDate, ratingColor,
