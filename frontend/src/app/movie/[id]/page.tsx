@@ -85,18 +85,13 @@ export default function MovieDetailPage() {
       try {
         const data = await moviesAPI.getDetail(tmdbId);
         setMovie(data);
-        const recData = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/movies/tmdb/${tmdbId}/`
-        ).then(r => r.json());
 
-        const recs = recData?.recommendations?.results || [];
+        const recs = data?.recommendations?.results || [];
         setRecommendations(recs.slice(0, 15));
 
-        // Similar movies
-        const similar = recData?.similar?.results || [];
+        const similar = data?.similar?.results || [];
         setSimilarMovies(similar.slice(0, 15));
 
-        // "Because you liked" - get recs from liked movies
         fetchLikedRecommendations();
       } catch (err) {
         console.error("Failed to fetch movie:", err);
