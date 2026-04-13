@@ -206,7 +206,14 @@ export default function MovieDetailPage() {
       saveWatchlist(watchlist);
       setIsBookmarked(true);
     }
-  }, [tmdbId, isBookmarked, movie]);
+        if (isAuthenticated) {
+        recommendationsAPI.addToWatchlist({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          poster_path: movie?.poster_path || "",
+        }).catch(() => {});
+      }
+  }, [tmdbId, isBookmarked, movie, isAuthenticated]);
 
   // Loading state
   if (loading) {
