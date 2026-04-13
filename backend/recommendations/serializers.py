@@ -33,5 +33,5 @@ class WatchlistSerializer(serializers.ModelSerializer):
         if obj.poster_path:
            from django.conf import settings
 # ... inside method:
-            return f"{settings.TMDB_IMAGE_BASE_URL}/w500{obj.poster_path}"
+        return f"{settings.TMDB_IMAGE_BASE_URL}/w500{obj.poster_path}"
         return None

@@ -241,12 +241,12 @@ class MovieSyncService:
         providers = data.get("watch/providers", {}).get("results", {}).get("US", {})
         WatchProvider.objects.filter(movie=movie).delete()
         # Module level:
-PROVIDER_TYPE_MAP = {
-    "flatrate": "stream",
-    "rent": "rent",
-    "buy": "buy",
-    "free": "free",
-}
+        PROVIDER_TYPE_MAP = {
+            "flatrate": "stream",
+            "rent": "rent",
+            "buy": "buy",
+            "free": "free",
+        }
 
 Examples of changes (applied to all ~15 methods):
 - `"""getting  full movie details..."""` → `"""Get full movie details with credits, videos, and recommendations."""`
