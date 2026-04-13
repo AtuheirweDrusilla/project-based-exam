@@ -20,9 +20,9 @@ class PersonCompactSerializer(serializers.ModelSerializer):
         model = Person
         fields = ["id", "tmdb_id", "name", "profile_url", "known_for_department"]
         
-  def _get_release_year(obj):
-    """Extract the release year from a model instance (shared by compact/detail serializers)."""
-    return obj.release_date.year if obj.release_date else None
+    def _get_release_year(obj):
+        """Extract the release year from a model instance (shared by compact/detail serializers)."""
+        return obj.release_date.year if obj.release_date else None
 
 
 class PersonDetailSerializer(serializers.ModelSerializer):
@@ -79,7 +79,7 @@ class MovieCompactSerializer(serializers.ModelSerializer):
         ]
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class MovieDetailSerializer(serializers.ModelSerializer):
@@ -114,7 +114,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
         return MovieCastSerializer(cast, many=True).data
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class TMDBMovieSerializer(serializers.Serializer):
@@ -132,7 +132,7 @@ class TMDBMovieSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-       from django.conf import settings
+        from django.conf import settings
 # ... inside method:
         image_base = settings.TMDB_IMAGE_BASE_URL
 
