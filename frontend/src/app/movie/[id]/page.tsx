@@ -180,7 +180,15 @@ export default function MovieDetailPage() {
       setIsDisliked(true);
       setIsLiked(false);
     }
-  }, [tmdbId, isDisliked, movie]);
+       if (isAuthenticated) {
+        recommendationsAPI.trackInteraction({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          interaction_type: "dislike",
+          genre_ids: (movie?.genres || []).map((g: any) => g.id || g.tmdb_id),
+        }).catch(() => {});
+      }
+  }, [tmdbId, isDisliked, movie, isAuthenticated]);
 
   const handleBookmark = useCallback(() => {
     const watchlist = getWatchlist();
