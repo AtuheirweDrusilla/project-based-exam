@@ -108,11 +108,8 @@ export default function MovieDetailPage() {
     if (liked.length === 0) return;
 
     try {
-      // Take a random liked movie and get its recommendations
       const randomLiked = liked[Math.floor(Math.random() * liked.length)];
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/movies/tmdb/${randomLiked.id}/`
-      ).then(r => r.json());
+      const res = await moviesAPI.getDetail(randomLiked.id);
       const recs = res?.recommendations?.results || [];
       setLikedRecs(recs.slice(0, 10));
     } catch {
