@@ -138,10 +138,10 @@ class MovieSyncService:
         from movies.models import Genre
 
         genres = self.tmdb.get_genres()
-        for g in genres:
+        for genre_data in genres:
             Genre.objects.update_or_create(
-                tmdb_id=g["id"],
-                defaults={"name": g["name"], "slug": slugify(g["name"])},
+                tmdb_id=genre_data["id"],
+                defaults={"name": genre_data["name"], "slug": slugify(genre_data["name"])},
             )
         logger.info(f"Synced {len(genres)} genres")
 
@@ -153,6 +153,13 @@ class MovieSyncService:
         if not data or "id" not in data:
             logger.warning(f"Could not fetch movie {tmdb_id}")
             return None
+
+        **Problem:** Comment headers in `views.py` used inconsistent formats: `##`, `###`, bare `##`, and no separators. In `engine.py`, comments had missing spaces (`###sorting`) and inconsistent prefixes (`##`, `###`).
+
+**Changes across `views.py` and `engine.py`:**
+- All section headers now use consistent `# --- Title ---` separator format
+- All inline comments use standard `#` prefix with proper spacing
+- Removed stale/redundant comment noise (`### class helper functions` → `# -- internal helpers --`)
 
         movie, _ = Movie.objects.update_or_create(
             tmdb_id=data["id"],
@@ -178,10 +185,10 @@ class MovieSyncService:
 
         # Sync genres
         genre_ids = []
-        for g in data.get("genres", []):
+        for genre_data in data.get("genres", []):
             genre, _ = Genre.objects.get_or_create(
                 tmdb_id=g["id"],
-                defaults={"name": g["name"], "slug": slugify(g["name"])},
+                defaults={"name": genre_data["name"], "slug": slugify(genre_data["name"])},
             )
             genre_ids.append(genre.id)
         movie.genres.set(genre_ids)
@@ -233,9 +240,25 @@ class MovieSyncService:
         # Watch providers
         providers = data.get("watch/providers", {}).get("results", {}).get("US", {})
         WatchProvider.objects.filter(movie=movie).delete()
-        for ptype in ["flatrate", "rent", "buy", "free"]:
-            type_map = {"flatrate": "stream", "rent": "rent", "buy": "buy", "free": "free"}
-            for p in providers.get(ptype, []):
+        # Module level:
+PROVIDER_TYPE_MAP = {
+    "flatrate": "stream",
+    "rent": "rent",
+    "buy": "buy",
+    "free": "free",
+}
+
+Examples of changes (applied to all ~15 methods):
+- `"""getting  full movie details..."""` → `"""Get full movie details with credits, videos, and recommendations."""`
+- `"""searching movies by title."""` → `"""Search movies by title."""`
+- `"""getting  trending movies (day or week)."""` → `"""Get trending movies for a time window (day or week)."""`
+- `"""Syncing all genres from TMDB to local DB."""` → `"""Sync all genres from TMDB to local DB."""`
+- `"""getting  Wikipedia summary for a movie."""` → `"""Fetch a Wikipedia summary for a movie, falling back to a generic title if year-specific lookup 404s."""`
+
+
+# Inside sync_movie:
+        for tmdb_key, local_type in PROVIDER_TYPE_MAP.items():
+            for provider in providers.get(tmdb_key, []):
                 WatchProvider.objects.create(
                     movie=movie,
                     provider_name=p.get("provider_name", ""),
