@@ -50,6 +50,7 @@ function saveWatchlist(movies: any[]) {
 export default function MovieDetailPage() {
   const params = useParams();
   const tmdbId = Number(params.id);
+  const { isAuthenticated } = useAuth();
 
   const [movie, setMovie] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<MovieCompact[]>([]);
