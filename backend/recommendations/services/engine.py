@@ -18,13 +18,14 @@ INTERACTION_WEIGHTS = {
 
 
 class RecommendationEngine:
-    """Class to generate personalized movie recommendations."""
+    """Generate personalised movie recommendations from user interaction history."""
 
     def __init__(self):
         self.tmdb = TMDBService()
 
     def compute_genre_preferences(self, user) -> list:
         from recommendations.models import UserMovieInteraction, UserGenrePreference
+        from movies.models import Genre
 
         interactions = UserMovieInteraction.objects.filter(user=user)
         genre_scores = Counter()
@@ -40,7 +41,6 @@ class RecommendationEngine:
             for genre_id in interaction.genre_ids:
                 genre_scores[genre_id] += w
                 if genre_id not in genre_names:
-                    from movies.models import Genre
                     try:
                         genre = Genre.objects.get(tmdb_id=genre_id)
                         genre_names[genre_id] = genre.name
