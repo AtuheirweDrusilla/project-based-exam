@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import MovieCarousel from "@/components/MovieCarousel";
 import MovieCard from "@/components/MovieCard";
-import { moviesAPI } from "@/lib/api";
+import { moviesAPI, recommendationsAPI } from "@/lib/api";
+import { useAuth } from "@/lib/AuthContext";
 import {
   posterUrl, backdropUrl, formatRuntime, formatCurrency,
   formatDate, ratingColor,
@@ -49,6 +50,7 @@ function saveWatchlist(movies: any[]) {
 export default function MovieDetailPage() {
   const params = useParams();
   const tmdbId = Number(params.id);
+  const { isAuthenticated } = useAuth();
 
   const [movie, setMovie] = useState<any>(null);
   const [recommendations, setRecommendations] = useState<MovieCompact[]>([]);
@@ -148,7 +150,15 @@ export default function MovieDetailPage() {
       setIsDisliked(false);
       setLikeCount((c) => c + 1);
     }
-  }, [tmdbId, isLiked, movie]);
+         if (isAuthenticated) {
+        recommendationsAPI.trackInteraction({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          interaction_type: "like",
+          genre_ids: (movie?.genres || []).map((g: any) => g.id || g.tmdb_id),
+        }).catch(() => {});
+      }
+ }, [tmdbId, isLiked, movie, isAuthenticated]);
 
   const handleDislike = useCallback(() => {
     const liked = getLikedMovies();
@@ -170,7 +180,15 @@ export default function MovieDetailPage() {
       setIsDisliked(true);
       setIsLiked(false);
     }
-  }, [tmdbId, isDisliked, movie]);
+       if (isAuthenticated) {
+        recommendationsAPI.trackInteraction({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          interaction_type: "dislike",
+          genre_ids: (movie?.genres || []).map((g: any) => g.id || g.tmdb_id),
+        }).catch(() => {});
+      }
+  }, [tmdbId, isDisliked, movie, isAuthenticated]);
 
   const handleBookmark = useCallback(() => {
     const watchlist = getWatchlist();
@@ -188,7 +206,14 @@ export default function MovieDetailPage() {
       saveWatchlist(watchlist);
       setIsBookmarked(true);
     }
-  }, [tmdbId, isBookmarked, movie]);
+        if (isAuthenticated) {
+        recommendationsAPI.addToWatchlist({
+          movie_tmdb_id: tmdbId,
+          movie_title: movie?.title || "",
+          poster_path: movie?.poster_path || "",
+        }).catch(() => {});
+      }
+  }, [tmdbId, isBookmarked, movie, isAuthenticated]);
 
   // Loading state
   if (loading) {
