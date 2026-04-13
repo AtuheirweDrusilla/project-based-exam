@@ -13,9 +13,102 @@ from .serializers import (
 )
 from .services.tmdb_service import TMDBService, MovieSyncService, WikipediaService
 
+#Constants
+MOOD_MAP = {
+    "cozy-night": {
+        "label": "Cozy Night In",
+        "description": "Warm, comforting films perfect for a relaxed evening",
+        "genres": "35,10749,16",  # Comedy, Romance, Animation
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 200,
+        "vote_average_gte": 7.0,
+    },
+    "adrenaline": {
+        "label": "Adrenaline Rush",
+        "description": "Heart-pumping action and intense thrills",
+        "genres": "28,53,80",  # Action, Thriller, Crime
+        "sort_by": "popularity.desc",
+        "vote_count_gte": 300,
+    },
+    "date-night": {
+        "label": "Date Night",
+        "description": "Romantic and charming films to share with someone special",
+        "genres": "10749,35,18",  # Romance, Comedy, Drama
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 150,
+        "vote_average_gte": 6.5,
+    },
+    "mind-bender": {
+        "label": "Mind Bender",
+        "description": "Thought-provoking stories that twist your perception",
+        "genres": "878,9648,53",  # Sci-Fi, Mystery, Thriller
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 200,
+        "vote_average_gte": 7.0,
+    },
+    "feel-good": {
+        "label": "Feel Good",
+        "description": "Uplifting stories that leave you smiling",
+        "genres": "35,10751,16",  # Comedy, Family, Animation
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 150,
+        "vote_average_gte": 7.0,
+    },
+    "edge-of-seat": {
+        "label": "Edge of Your Seat",
+        "description": "Suspenseful films that keep you guessing",
+        "genres": "53,9648,27",  # Thriller, Mystery, Horror
+        "sort_by": "popularity.desc",
+        "vote_count_gte": 200,
+    },
+    "epic-adventure": {
+        "label": "Epic Adventure",
+        "description": "Grand journeys and sweeping tales of heroism",
+        "genres": "12,14,878",  # Adventure, Fantasy, Sci-Fi
+        "sort_by": "popularity.desc",
+        "vote_count_gte": 300,
+    },
+    "cry-it-out": {
+        "label": "Cry It Out",
+        "description": "Emotional dramas that hit you right in the feels",
+        "genres": "18,10749,10402",  # Drama, Romance, Music
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 200,
+        "vote_average_gte": 7.5,
+    },
+    "family-fun": {
+        "label": "Family Fun",
+        "description": "Movies the whole family can enjoy together",
+        "genres": "16,10751,12",  # Animation, Family, Adventure
+        "sort_by": "popularity.desc",
+        "vote_count_gte": 200,
+    },
+     "documentary-deep-dive": {
+        "label": "Documentary Deep Dive",
+        "description": "Real stories that expand your worldview",
+        "genres": "99",  # Documentary
+        "sort_by": "vote_average.desc",
+        "vote_count_gte": 100,
+        "vote_average_gte": 7.0,
+    },
+}
+
 logger = logging.getLogger(__name__)
 tmdb = TMDBService()
 sync_service = MovieSyncService()
+
+def _serialize_tmdb_results(tmdb_data, page, include_total=False):
+    """Serialize raw TMDB API results into a standard paginated response dict."""
+    results = tmdb_data.get("results", [])
+    serializer = TMDBMovieSerializer(results, many=True)
+    response = {
+        "results": serializer.data,
+        "total_pages": tmdb_data.get("total_pages", 1),
+        "page": page,
+    }
+    if include_total:
+        response["total_results"] = tmdb_data.get("total_results", 0)
+    return response
 
 ## Movie ViewSet
 class MovieViewSet(viewsets.ReadOnlyModelViewSet):
@@ -167,23 +260,18 @@ def trending_movies(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def now_playing(request):
-    p = int(request.query_params.get("page", 1))
-    d = tmdb.get_now_playing(page=p)
-    r = d.get("results", [])
-    s = TMDBMovieSerializer(r, many=True)
-    x = {"results": s.data, "page": p}
-    return Response(x)
-
+    """Return movies currently in theatres."""
+    page = int(request.query_params.get("page", 1))
+    data = tmdb.get_now_playing(page=page)
+    return Response(_serialize_tmdb_results(data, page))
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def top_rated(request):
-    p = int(request.query_params.get("page", 1))
-    d = tmdb.get_top_rated_movies(page=p)
-    r = d.get("results", [])
-    s = TMDBMovieSerializer(r, many=True)
-    x = {"results": s.data, "page": p}
-    return Response(x)
+    """Return highest-rated movies of all time."""
+    page = int(request.query_params.get("page", 1))
+    data = tmdb.get_top_rated_movies(page=page)
+    return Response(_serialize_tmdb_results(data, page))
 
 
 @api_view(["GET"])
@@ -214,88 +302,6 @@ def search_people(request):
 
     data = tmdb.search_people(query)
     return Response(data)
-
-
-
-MOOD_MAP = {
-    "cozy-night": {
-        "label": "Cozy Night In",
-        "description": "Warm, comforting films perfect for a relaxed evening",
-        "genres": "35,10749,16",  # Comedy, Romance, Animation
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 200,
-        "vote_average_gte": 7.0,
-    },
-    "adrenaline": {
-        "label": "Adrenaline Rush",
-        "description": "Heart-pumping action and intense thrills",
-        "genres": "28,53,80",  # Action, Thriller, Crime
-        "sort_by": "popularity.desc",
-        "vote_count_gte": 300,
-    },
-    "date-night": {
-        "label": "Date Night",
-        "description": "Romantic and charming films to share with someone special",
-        "genres": "10749,35,18",  # Romance, Comedy, Drama
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 150,
-        "vote_average_gte": 6.5,
-    },
-    "mind-bender": {
-        "label": "Mind Bender",
-        "description": "Thought-provoking stories that twist your perception",
-        "genres": "878,9648,53",  # Sci-Fi, Mystery, Thriller
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 200,
-        "vote_average_gte": 7.0,
-    },
-    "feel-good": {
-        "label": "Feel Good",
-        "description": "Uplifting stories that leave you smiling",
-        "genres": "35,10751,16",  # Comedy, Family, Animation
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 150,
-        "vote_average_gte": 7.0,
-    },
-    "edge-of-seat": {
-        "label": "Edge of Your Seat",
-        "description": "Suspenseful films that keep you guessing",
-        "genres": "53,9648,27",  # Thriller, Mystery, Horror
-        "sort_by": "popularity.desc",
-        "vote_count_gte": 200,
-    },
-    "epic-adventure": {
-        "label": "Epic Adventure",
-        "description": "Grand journeys and sweeping tales of heroism",
-        "genres": "12,14,878",  # Adventure, Fantasy, Sci-Fi
-        "sort_by": "popularity.desc",
-        "vote_count_gte": 300,
-    },
-    "cry-it-out": {
-        "label": "Cry It Out",
-        "description": "Emotional dramas that hit you right in the feels",
-        "genres": "18,10749,10402",  # Drama, Romance, Music
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 200,
-        "vote_average_gte": 7.5,
-    },
-    "family-fun": {
-        "label": "Family Fun",
-        "description": "Movies the whole family can enjoy together",
-        "genres": "16,10751,12",  # Animation, Family, Adventure
-        "sort_by": "popularity.desc",
-        "vote_count_gte": 200,
-    },
-    "documentary-deep-dive": {
-        "label": "Documentary Deep Dive",
-        "description": "Real stories that expand your worldview",
-        "genres": "99",  # Documentary
-        "sort_by": "vote_average.desc",
-        "vote_count_gte": 100,
-        "vote_average_gte": 7.0,
-    },
-}
-
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
@@ -410,22 +416,3 @@ def compare_movies(request):
     return Response({"movies": movies})
 
 
-@api_view(["GET"])
-@permission_classes([AllowAny])
-def compare_two_movies(request):
-    id_string = request.query_params.get("ids", "")
-    movie_ids = [int(i.strip()) for i in id_string.split(",") if i.strip().isdigit()]
-
-    if len(movie_ids) < 2:
-        return Response({"error": "Provide at least 2 TMDB IDs: ?ids=550,680"}, status=400)
-
-    movie_list = []
-    for tid in movie_ids[:2]:
-        result = tmdb.get_movie_details(tid)
-        if result and "id" in result:
-            movie_list.append(result)
-
-    if len(movie_list) < 2:
-        return Response({"error": "Could not fetch both movies"}, status=404)
-
-    return Response({"movies": movie_list})
