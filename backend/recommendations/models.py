@@ -19,6 +19,40 @@ class Collection(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        visibility = "public" if self.is_public else "private"
+        return f"{self.name} ({self.user.username}, {visibility})"
+    
+
+class CollectionRule(models.Model):
+    """Single filter rule that defines which movies belong to a collection."""
+
+    class Field(models.TextChoices):
+        GENRE = "genre", "Genre"
+        YEAR_MIN = "year_min", "Year (min)"
+        YEAR_MAX = "year_max", "Year (max)"
+        RATING_MIN = "rating_min", "Rating (min)"
+        RATING_MAX = "rating_max", "Rating (max)"
+        RUNTIME_MIN = "runtime_min", "Runtime min (minutes)"
+        RUNTIME_MAX = "runtime_max", "Runtime max (minutes)"
+        LANGUAGE = "language", "Original language"
+        SORT_BY = "sort_by", "Sort order"
+
+    collection = models.ForeignKey(
+        Collection, on_delete=models.CASCADE, related_name="rules",
+    )
+    field = models.CharField(max_length=20, choices=Field.choices)
+    value = models.CharField(max_length=200)
+
+    class Meta:
+        ordering = ["field"]
+
+    def __str__(self):
+        return f"{self.collection.name}: {self.field}={self.value}"    
+
 
 class UserMovieInteraction(models.Model):
 
