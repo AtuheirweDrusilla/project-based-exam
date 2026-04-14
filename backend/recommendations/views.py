@@ -213,6 +213,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
     """CRUD for user-created smart collections with auto-populated movies."""
 
     permission_classes = [IsAuthenticated]
+    pagination_class = None
 
     def get_serializer_class(self):
         if self.action == "list":

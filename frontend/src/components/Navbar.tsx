@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search, Menu, X, Film, Compass, Star, Clapperboard,
-  Sparkles, BarChart3, User, LogOut, LogIn, ArrowLeftRight,
+  Sparkles, BarChart3, User, LogOut, LogIn, ArrowLeftRight, Library,
 } from "lucide-react";
 import SearchModal from "@/components/SearchModal";
 import AuthModal from "@/components/AuthModal";
@@ -33,6 +33,7 @@ export default function Navbar() {
     { href: "/genre", label: "Genres", icon: Clapperboard },
     { href: "/mood", label: "Mood", icon: Sparkles },
     { href: "/compare", label: "Compare", icon: ArrowLeftRight },
+    { href: "/collections", label: "Collections", icon: Library },
     { href: "/search?sort=top_rated", label: "Top Rated", icon: Star },
   ];
 
