@@ -54,6 +54,8 @@ class CollectionRule(models.Model):
         return f"{self.collection.name}: {self.field}={self.value}"    
 
 
+
+
 class UserMovieInteraction(models.Model):
 
     class InteractionType(models.TextChoices):
