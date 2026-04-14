@@ -1,5 +1,11 @@
 from rest_framework import serializers
+from django.conf import settings
 from .models import Genre, Person, Movie, MovieCast, WatchProvider
+
+
+def _get_release_year(obj):
+    """Extract the release year from a model instance (shared by compact/detail serializers)."""
+    return obj.release_date.year if obj.release_date else None
 
 
 class GenreSerializer(serializers.ModelSerializer):
@@ -75,7 +81,7 @@ class MovieCompactSerializer(serializers.ModelSerializer):
         ]
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class MovieDetailSerializer(serializers.ModelSerializer):
@@ -110,7 +116,7 @@ class MovieDetailSerializer(serializers.ModelSerializer):
         return MovieCastSerializer(cast, many=True).data
 
     def get_year(self, obj):
-        return obj.release_date.year if obj.release_date else None
+        return _get_release_year(obj)
 
 
 class TMDBMovieSerializer(serializers.Serializer):
@@ -128,12 +134,12 @@ class TMDBMovieSerializer(serializers.Serializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        base = "https://image.tmdb.org/t/p"
+        image_base = settings.TMDB_IMAGE_BASE_URL
         if data.get("poster_path"):
-            data["poster_url"] = f"{base}/w500{data['poster_path']}"
-            data["poster_url_small"] = f"{base}/w185{data['poster_path']}"
+            data["poster_url"] = f"{image_base}/w500{data['poster_path']}"
+            data["poster_url_small"] = f"{image_base}/w185{data['poster_path']}"
         if data.get("backdrop_path"):
-            data["backdrop_url"] = f"{base}/w1280{data['backdrop_path']}"
-        rd = data.get("release_date", "")
-        data["year"] = int(rd[:4]) if rd and len(rd) >= 4 else None
+            data["backdrop_url"] = f"{image_base}/w1280{data['backdrop_path']}"
+        release_date = data.get("release_date", "")
+        data["year"] = int(release_date[:4]) if release_date and len(release_date) >= 4 else None
         return data

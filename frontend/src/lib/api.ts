@@ -8,6 +8,9 @@ import type {
   User,
   GenrePreference,
   WatchlistItem,
+  Collection,
+  CollectionCompact,
+  CollectionRule,
 } from "@/types/movie";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
@@ -236,4 +239,76 @@ export const recommendationsAPI = {
     apiFetch(`/recommendations/watchlist/${id}/`, { method: "DELETE" }),
 
   getDashboard: () => apiFetch<any>("/recommendations/dashboard/"),
+};
+
+// Collections API
+
+export const collectionsAPI = {
+  list: () =>
+    apiFetch<CollectionCompact[]>("/recommendations/collections/"),
+
+  get: (id: number) =>
+    apiFetch<Collection>(`/recommendations/collections/${id}/`),
+
+  create: (data: {
+    name: string;
+    description?: string;
+    is_public?: boolean;
+    cover_backdrop?: string;
+    rules: Omit<CollectionRule, "id">[];
+  }) =>
+    apiFetch<Collection>("/recommendations/collections/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: number,
+    data: {
+      name?: string;
+      description?: string;
+      is_public?: boolean;
+      cover_backdrop?: string;
+      rules?: Omit<CollectionRule, "id">[];
+    }
+  ) =>
+    apiFetch<Collection>(`/recommendations/collections/${id}/`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: number) =>
+    apiFetch(`/recommendations/collections/${id}/`, { method: "DELETE" }),
+
+  getMovies: (id: number, page = 1) =>
+    apiFetch<{
+      collection: CollectionCompact;
+      results: MovieCompact[];
+      total_pages: number;
+      total_results: number;
+      page: number;
+    }>(`/recommendations/collections/${id}/movies/?page=${page}`),
+
+  preview: (rules: Omit<CollectionRule, "id">[], page = 1) =>
+    apiFetch<{
+      results: MovieCompact[];
+      total_pages: number;
+      total_results: number;
+      page: number;
+    }>("/recommendations/collections/preview/", {
+      method: "POST",
+      body: JSON.stringify({ rules, page }),
+    }),
+
+  getPublicList: () =>
+    apiFetch<CollectionCompact[]>("/recommendations/collections/public/"),
+
+  getPublicDetail: (id: number, page = 1) =>
+    apiFetch<{
+      collection: Collection;
+      results: MovieCompact[];
+      total_pages: number;
+      total_results: number;
+      page: number;
+    }>(`/recommendations/collections/${id}/public/?page=${page}`),
 };
