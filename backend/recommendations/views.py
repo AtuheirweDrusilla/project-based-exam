@@ -209,3 +209,36 @@ def _build_discover_params(rules):
     return params
 
 
+class CollectionViewSet(viewsets.ModelViewSet):
+    """CRUD for user-created smart collections with auto-populated movies."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return CollectionCompactSerializer
+        return CollectionSerializer
+
+    def get_queryset(self):
+        return Collection.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["get"])
+    def movies(self, request, pk=None):
+        """Return TMDB movies matching this collection's rules."""
+        collection = self.get_object()
+        page = int(request.query_params.get("page", 1))
+        params = _build_discover_params(collection.rules.all())
+        params["page"] = page
+        data = _tmdb.discover_movies(**params)
+        results = data.get("results", [])
+        serializer = TMDBMovieSerializer(results, many=True)
+        return Response({
+            "collection": CollectionCompactSerializer(collection).data,
+            "results": serializer.data,
+            "total_pages": data.get("total_pages", 1),
+            "total_results": data.get("total_results", 0),
+            "page": page,
+        })
