@@ -1,6 +1,24 @@
 from django.db import models
 from django.conf import settings
 
+class Collection(models.Model):
+    """User-created dynamic movie list populated by filter rules."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="collections",
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
+    is_public = models.BooleanField(default=False)
+    cover_backdrop = models.CharField(
+        max_length=255, blank=True, default="",
+        help_text="TMDB backdrop path used as the collection cover image",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 
 class UserMovieInteraction(models.Model):
 
