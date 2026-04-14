@@ -242,3 +242,58 @@ class CollectionViewSet(viewsets.ModelViewSet):
             "total_results": data.get("total_results", 0),
             "page": page,
         })
+    
+    @action(detail=False, methods=["post"], url_path="preview")
+    def preview(self, request):
+        """Preview movies for a set of rules without saving a collection."""
+        rules_data = request.data.get("rules", [])
+        page = int(request.data.get("page", 1))
+
+        class _RuleProxy:
+            def __init__(self, d):
+                self.field = d.get("field", "")
+                self.value = d.get("value", "")
+
+        rule_proxies = [_RuleProxy(r) for r in rules_data]
+        params = _build_discover_params(rule_proxies)
+        params["page"] = page
+        data = _tmdb.discover_movies(**params)
+        results = data.get("results", [])
+        serializer = TMDBMovieSerializer(results, many=True)
+        return Response({
+            "results": serializer.data,
+            "total_pages": data.get("total_pages", 1),
+            "total_results": data.get("total_results", 0),
+            "page": page,
+        })
+
+    @action(detail=True, methods=["get"], permission_classes=[AllowAny], url_path="public")
+    def public_detail(self, request, pk=None):
+        """Allow anyone to view a public collection and its movies."""
+        try:
+            collection = Collection.objects.get(pk=pk, is_public=True)
+        except Collection.DoesNotExist:
+            return Response({"detail": "Not found or not public."}, status=404)
+
+        page = int(request.query_params.get("page", 1))
+        params = _build_discover_params(collection.rules.all())
+        params["page"] = page
+        data = _tmdb.discover_movies(**params)
+        results = data.get("results", [])
+        serializer = TMDBMovieSerializer(results, many=True)
+        return Response({
+            "collection": CollectionSerializer(collection).data,
+            "results": serializer.data,
+            "total_pages": data.get("total_pages", 1),
+            "total_results": data.get("total_results", 0),
+            "page": page,
+        })
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_collections(request):
+    """List all public collections from all users."""
+    qs = Collection.objects.filter(is_public=True).select_related("user")
+    serializer = CollectionCompactSerializer(qs, many=True)
+    return Response(serializer.data)
