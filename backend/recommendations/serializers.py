@@ -87,3 +87,22 @@ class CollectionSerializer(serializers.ModelSerializer):
                 CollectionRule.objects.create(collection=instance, **rule_data)
 
         return instance
+
+
+class CollectionCompactSerializer(serializers.ModelSerializer):
+    """Lightweight serializer for listing collections without nested rules."""
+    owner = serializers.CharField(source="user.username", read_only=True)
+    rule_count = serializers.IntegerField(source="rules.count", read_only=True)
+    cover_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Collection
+        fields = [
+            "id", "name", "description", "is_public", "cover_url",
+            "owner", "rule_count", "created_at", "updated_at",
+        ]
+
+    def get_cover_url(self, obj):
+        if obj.cover_backdrop:
+            return f"{settings.TMDB_IMAGE_BASE_URL}/w1280{obj.cover_backdrop}"
+        return None
