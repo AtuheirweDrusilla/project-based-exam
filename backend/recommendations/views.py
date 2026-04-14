@@ -4,16 +4,20 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import UserMovieInteraction, UserGenrePreference, Watchlist
+from .models import UserMovieInteraction, UserGenrePreference, Watchlist, Collection
 from .serializers import (
     UserMovieInteractionSerializer,
     UserGenrePreferenceSerializer,
     WatchlistSerializer,
+    CollectionSerializer,
+    CollectionCompactSerializer,
 )
 from .services.engine import RecommendationEngine
 from movies.serializers import TMDBMovieSerializer
+from movies.services.tmdb_service import TMDBService
 
 engine = RecommendationEngine()
+_tmdb = TMDBService()
 
 
 @api_view(["GET"])
@@ -172,3 +176,36 @@ def dashboard_stats(request):
         "activity_timeline": activity_timeline,
         "recent_activity": recent_data,
     })
+
+
+def _build_discover_params(rules):
+    """Convert a list of CollectionRule instances into TMDB discover kwargs."""
+    params: dict = {}
+    genres = []
+    for rule in rules:
+        field, value = rule.field, rule.value
+        if field == "genre":
+            genres.append(value)
+        elif field == "year_min":
+            params["primary_release_date.gte"] = f"{value}-01-01"
+        elif field == "year_max":
+            params["primary_release_date.lte"] = f"{value}-12-31"
+        elif field == "rating_min":
+            params["vote_average.gte"] = float(value)
+            params.setdefault("vote_count.gte", 50)
+        elif field == "rating_max":
+            params["vote_average.lte"] = float(value)
+        elif field == "runtime_min":
+            params["with_runtime.gte"] = int(value)
+        elif field == "runtime_max":
+            params["with_runtime.lte"] = int(value)
+        elif field == "language":
+            params["with_original_language"] = value
+        elif field == "sort_by":
+            params["sort_by"] = value
+    if genres:
+        params["with_genres"] = ",".join(genres)
+    params.setdefault("sort_by", "popularity.desc")
+    return params
+
+
