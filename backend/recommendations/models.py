@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 
+
 class Collection(models.Model):
     """User-created dynamic movie list populated by filter rules."""
 
@@ -25,7 +26,7 @@ class Collection(models.Model):
     def __str__(self):
         visibility = "public" if self.is_public else "private"
         return f"{self.name} ({self.user.username}, {visibility})"
-    
+
 
 class CollectionRule(models.Model):
     """Single filter rule that defines which movies belong to a collection."""
@@ -51,9 +52,7 @@ class CollectionRule(models.Model):
         ordering = ["field"]
 
     def __str__(self):
-        return f"{self.collection.name}: {self.field}={self.value}"    
-
-
+        return f"{self.collection.name}: {self.field}={self.value}"
 
 
 class UserMovieInteraction(models.Model):

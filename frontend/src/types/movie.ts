@@ -95,6 +95,8 @@ export interface AuthTokens {
   refresh: string;
 }
 
+// Recommendation Types
+
 export interface WatchlistItem {
   id: number;
   movie_tmdb_id: number;
@@ -104,8 +106,6 @@ export interface WatchlistItem {
   watched: boolean;
   watched_at: string | null;
 }
-
-// Recommendation Types
 
 export interface GenrePreference {
   genre_tmdb_id: number;

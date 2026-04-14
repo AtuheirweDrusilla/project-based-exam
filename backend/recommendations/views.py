@@ -178,6 +178,10 @@ def dashboard_stats(request):
     })
 
 
+# ---------------------------------------------------------------------------
+# Smart Collections
+# ---------------------------------------------------------------------------
+
 def _build_discover_params(rules):
     """Convert a list of CollectionRule instances into TMDB discover kwargs."""
     params: dict = {}
@@ -243,7 +247,7 @@ class CollectionViewSet(viewsets.ModelViewSet):
             "total_results": data.get("total_results", 0),
             "page": page,
         })
-    
+
     @action(detail=False, methods=["post"], url_path="preview")
     def preview(self, request):
         """Preview movies for a set of rules without saving a collection."""
